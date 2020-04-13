@@ -21,8 +21,11 @@ class FlutterAudioRecorder {
   Future get initialized => _initRecorder;
   Recording get recording => _recording;
 
-  FlutterAudioRecorder(String path,
-      {AudioFormat audioFormat, int sampleRate = 16000}) {
+  FlutterAudioRecorder(
+    String path, {
+    AudioFormat audioFormat,
+    int sampleRate = 16000,
+  }) {
     _initRecorder = _init(path, audioFormat, sampleRate);
   }
 
@@ -89,6 +92,10 @@ class FlutterAudioRecorder {
     return _channel.invokeMethod('start');
   }
 
+  Future startWithPlaying() async {
+    return _channel.invokeMethod('startWithPlaying');
+  }
+
   /// Request currently [Recording] recording to be [Paused]
   /// Note: Use [current] to get latest state of recording after [pause]
   Future pause() async {
@@ -98,6 +105,10 @@ class FlutterAudioRecorder {
   /// Request currently [Paused] recording to continue
   Future resume() async {
     return _channel.invokeMethod('resume');
+  }
+
+  Future resumeWithPlaying() async {
+    return _channel.invokeMethod('resumeWithPlaying');
   }
 
   /// Request the recording to stop

@@ -116,11 +116,17 @@ public class FlutterAudioRecorderPlugin implements MethodCallHandler, PluginRegi
       case "start":
         handleStart(call, result);
         break;
+      case "startWithPlaying":
+        handleStartWithPlaying(call, result);
+        break;
       case "pause":
         handlePause(call, result);
         break;
       case "resume":
         handleResume(call, result);
+        break;
+      case "resumeWithPlaying":
+        handleStartWithPlaying(call, result);
         break;
       case "stop":
         handleStop(call, result);
@@ -194,6 +200,51 @@ public class FlutterAudioRecorderPlugin implements MethodCallHandler, PluginRegi
     result.success(null);
   }
 
+  private void handleStartWithPlaying(MethodCall call, Result result) {
+    mRecorder = new AudioRecord(MediaRecorder.AudioSource.MIC, mSampleRate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, bufferSize);
+    try {
+      mFileOutputStream = new FileOutputStream(getTempFilename());
+    } catch (FileNotFoundException e) {
+      result.error("", "cannot find the file", null);
+      return;
+    }
+    mRecorder.startRecording();
+    mStatus = "recording";
+    mRecordingThread = new Thread(new Runnable() {
+      @Override
+      public void run() {
+        Log.d(LOG_NAME, "processing the stream: " + mStatus);
+        int size = bufferSize;
+        byte bData[] = new byte[size];
+        AudioAttributes attrs = new AudioAttributes.Builder().build();
+        AudioTrack track = new AudioTrack(
+          AudioManager.STREAM_MUSIC, 
+          mSampleRate, 
+          AudioFormat.CHANNEL_OUT_MONO,
+            AudioFormat.ENCODING_PCM_16BIT,
+            bufferSize, 
+            AudioTrack.MODE_STREAM);
+    
+        while (mStatus == "recording") {
+          Log.d(LOG_NAME, "reading audio data");
+          mRecorder.read(bData, 0, bData.length);
+          track.play();
+          track.write(bData, 0, bufferSize);
+          mDataSize += bData.length;
+          updatePowers(bData);
+          try {
+            mFileOutputStream.write(bData);
+          } catch (IOException e) {
+            e.printStackTrace();
+          }
+        }
+      }
+    }, "Audio Processing Thread");
+    mRecordingThread.start();
+
+    result.success(null);
+  }
+
   private void startThread(){
     mRecordingThread = new Thread(new Runnable() {
       @Override
@@ -217,6 +268,45 @@ public class FlutterAudioRecorderPlugin implements MethodCallHandler, PluginRegi
     mStatus = "recording";
     mRecorder.startRecording();
     startThread();
+    result.success(null);
+  }
+
+  private void handleResumeWithPlaying(MethodCall call, Result result) {
+    mStatus = "recording";
+    mRecorder.startRecording();
+
+    mRecordingThread = new Thread(new Runnable() {
+      @Override
+      public void run() {
+        Log.d(LOG_NAME, "processing the stream: " + mStatus);
+        int size = bufferSize;
+        byte bData[] = new byte[size];
+        AudioAttributes attrs = new AudioAttributes.Builder().build();
+        AudioTrack track = new AudioTrack(
+          AudioManager.STREAM_MUSIC, 
+          mSampleRate, 
+          AudioFormat.CHANNEL_OUT_MONO,
+            AudioFormat.ENCODING_PCM_16BIT,
+            bufferSize, 
+            AudioTrack.MODE_STREAM);
+    
+        while (mStatus == "recording") {
+          Log.d(LOG_NAME, "reading audio data");
+          mRecorder.read(bData, 0, bData.length);
+          track.play();
+          track.write(bData, 0, bufferSize);
+          mDataSize += bData.length;
+          updatePowers(bData);
+          try {
+            mFileOutputStream.write(bData);
+          } catch (IOException e) {
+            e.printStackTrace();
+          }
+        }
+      }
+    }, "Audio Processing Thread");
+    mRecordingThread.start();
+
     result.success(null);
   }
 
@@ -260,20 +350,10 @@ public class FlutterAudioRecorderPlugin implements MethodCallHandler, PluginRegi
     Log.d(LOG_NAME, "processing the stream: " + mStatus);
     int size = bufferSize;
     byte bData[] = new byte[size];
-    AudioAttributes attrs = new AudioAttributes.Builder().build();
-    AudioTrack track = new AudioTrack(
-      AudioManager.STREAM_MUSIC, 
-      mSampleRate, 
-      AudioFormat.CHANNEL_OUT_MONO,
-        AudioFormat.ENCODING_PCM_16BIT,
-         bufferSize, 
-         AudioTrack.MODE_STREAM);
 
     while (mStatus == "recording") {
       Log.d(LOG_NAME, "reading audio data");
       mRecorder.read(bData, 0, bData.length);
-      track.play();
-      track.write(bData, 0, bufferSize);
       mDataSize += bData.length;
       updatePowers(bData);
       try {
