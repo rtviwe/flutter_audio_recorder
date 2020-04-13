@@ -29,6 +29,9 @@ import io.flutter.plugin.common.MethodChannel.Result;
 import io.flutter.plugin.common.PluginRegistry;
 import io.flutter.plugin.common.PluginRegistry.Registrar;
 
+import android.media.*;
+import android.media.AudioTrack;
+
 /** FlutterAudioRecorderPlugin */
 public class FlutterAudioRecorderPlugin implements MethodCallHandler, PluginRegistry.RequestPermissionsResultListener {
   private static final String LOG_NAME = "AndroidAudioRecorder";
@@ -257,18 +260,27 @@ public class FlutterAudioRecorderPlugin implements MethodCallHandler, PluginRegi
     Log.d(LOG_NAME, "processing the stream: " + mStatus);
     int size = bufferSize;
     byte bData[] = new byte[size];
+    AudioAttributes attrs = new AudioAttributes.Builder().build();
+    AudioTrack track = new AudioTrack(
+      AudioManager.STREAM_MUSIC, 
+      mSampleRate, 
+      AudioFormat.CHANNEL_OUT_MONO,
+        AudioFormat.ENCODING_PCM_16BIT,
+         bufferSize, 
+         AudioTrack.MODE_STREAM);
 
-    while (mStatus == "recording"){
+    while (mStatus == "recording") {
       Log.d(LOG_NAME, "reading audio data");
       mRecorder.read(bData, 0, bData.length);
+      track.play();
+      track.write(bData, 0, bufferSize);
       mDataSize += bData.length;
       updatePowers(bData);
-        try {
-          mFileOutputStream.write(bData);
-        } catch (IOException e) {
-          e.printStackTrace();
-        }
-
+      try {
+        mFileOutputStream.write(bData);
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
     }
   }
 
